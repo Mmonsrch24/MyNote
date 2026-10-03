@@ -14,13 +14,19 @@ class ColorBar extends StatefulWidget {
   final Axis axis;
   final bool invert;
 
+  // คืนค่า static variable ให้ editor.dart ใช้งานได้ตามเดิม
+  static const List<Color> colorPresets = [
+    Color(0xFF1E1E1E), Color(0xFFDC2626), Color(0xFF2563EB), Color(0xFF16A34A), Color(0xFFEAB308),
+    Color(0xFF9333EA), Color(0xFFF97316), Color(0xFF06B6D4), Color(0xFFEC4899), Color(0xFFFFFFFF),
+  ];
+
   @override
   State<ColorBar> createState() => _ColorBarState();
 }
 
 class _ColorBarState extends State<ColorBar> {
   int _selectedTab = 0; // 0: Color palette, 1: Color Set
-  double _hue = 45.0; // 0 - 360
+  double _hue = 45.0;
   double _saturation = 0.8;
   double _value = 0.85;
   double _opacity = 1.0;
@@ -39,11 +45,6 @@ class _ColorBarState extends State<ColorBar> {
 
   Color get _activeColor => HSVColor.fromAHSV(_opacity, _hue, _saturation, _value).toColor();
 
-  final List<Color> _palettePresets = const [
-    Color(0xFF1E1E1E), Color(0xFFDC2626), Color(0xFF2563EB), Color(0xFF16A34A), Color(0xFFEAB308),
-    Color(0xFF9333EA), Color(0xFFF97316), Color(0xFF06B6D4), Color(0xFFEC4899), Color(0xFFFFFFFF),
-  ];
-
   @override
   Widget build(BuildContext context) {
     final hexString = _activeColor.toARGB32().toRadixString(16).padLeft(8, '0').substring(2).toUpperCase();
@@ -54,7 +55,7 @@ class _ColorBarState extends State<ColorBar> {
         margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: const Color(0xFF1E2235), // Dark Theme สไตล์ StarNote
+          color: const Color(0xFF1E2235),
           borderRadius: BorderRadius.circular(24),
           boxShadow: const [
             BoxShadow(
@@ -83,11 +84,9 @@ class _ColorBarState extends State<ColorBar> {
             ),
             const SizedBox(height: 14),
 
-            // 2. กล่องไล่ระดับสี (Gradient Saturation / Value Box)
+            // 2. กล่อง Saturation / Value Gradient Box
             GestureDetector(
               onPanUpdate: (details) {
-                final box = context.findRenderObject() as RenderBox?;
-                if (box == null) return;
                 setState(() {
                   _saturation = (details.localPosition.dx / 278).clamp(0.0, 1.0);
                   _value = (1.0 - (details.localPosition.dy / 140)).clamp(0.0, 1.0);
@@ -127,7 +126,7 @@ class _ColorBarState extends State<ColorBar> {
             ),
             const SizedBox(height: 12),
 
-            // 3. Slider เลือกเฉดสี Spectrum
+            // 3. Slider Hue Spectrum
             SliderTheme(
               data: SliderTheme.of(context).copyWith(
                 trackHeight: 12,
@@ -162,7 +161,7 @@ class _ColorBarState extends State<ColorBar> {
             ),
             const SizedBox(height: 12),
 
-            // 4. แสดงรหัส HEX, เปอร์เซ็นต์ Opacity และปุ่มบวก
+            // 4. Hex & Opacity
             Row(
               children: [
                 const Icon(Icons.colorize, size: 18, color: Colors.white70),
@@ -195,11 +194,11 @@ class _ColorBarState extends State<ColorBar> {
             ),
             const SizedBox(height: 14),
 
-            // 5. ถาดสี Preset ด้านล่าง
+            // 5. Preset Colors
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: _palettePresets.map((preset) {
+              children: ColorBar.colorPresets.map((preset) {
                 final isSelected = _activeColor.toARGB32() == preset.toARGB32();
                 return GestureDetector(
                   onTap: () {

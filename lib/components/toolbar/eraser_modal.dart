@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:saber/data/prefs.dart';
 import 'package:saber/data/tools/eraser.dart';
 
 class EraserModal extends StatefulWidget {
@@ -18,13 +17,12 @@ class EraserModal extends StatefulWidget {
 }
 
 class _EraserModalState extends State<EraserModal> {
+  bool _isStrokeEraser = true; // สลับโหมด Stroke กับ Area ใน UI
   bool _eraseHighlighterOnly = false;
   bool _eraseTapeOnly = false;
 
   @override
   Widget build(BuildContext context) {
-    final isStrokeEraser = widget.eraser.options.type.value == EraserType.wholeStroke;
-
     return Center(
       child: Container(
         width: 300,
@@ -65,32 +63,24 @@ class _EraserModalState extends State<EraserModal> {
             ),
             const SizedBox(height: 8),
 
-            // Stroke eraser option
+            // Stroke eraser
             _buildModeTile(
               title: 'Stroke eraser',
-              isSelected: isStrokeEraser,
-              onTap: () {
-                setState(() {
-                  widget.eraser.options.type.value = EraserType.wholeStroke;
-                });
-              },
+              isSelected: _isStrokeEraser,
+              onTap: () => setState(() => _isStrokeEraser = true),
             ),
             const SizedBox(height: 6),
 
-            // Area eraser option
+            // Area eraser
             _buildModeTile(
               title: 'Area eraser',
-              isSelected: !isStrokeEraser,
-              onTap: () {
-                setState(() {
-                  widget.eraser.options.type.value = EraserType.partialStroke;
-                });
-              },
+              isSelected: !_isStrokeEraser,
+              onTap: () => setState(() => _isStrokeEraser = false),
             ),
             const SizedBox(height: 10),
             const Divider(color: Colors.white12, height: 16),
 
-            // 2. Erase highlighter only toggle
+            // 2. Erase highlighter only
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               dense: true,
@@ -100,12 +90,10 @@ class _EraserModalState extends State<EraserModal> {
               ),
               value: _eraseHighlighterOnly,
               activeColor: const Color(0xFF3B82F6),
-              onChanged: (val) {
-                setState(() => _eraseHighlighterOnly = val);
-              },
+              onChanged: (val) => setState(() => _eraseHighlighterOnly = val),
             ),
 
-            // 3. Erase tape only toggle
+            // 3. Erase tape only
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               dense: true,
@@ -115,14 +103,12 @@ class _EraserModalState extends State<EraserModal> {
               ),
               value: _eraseTapeOnly,
               activeColor: const Color(0xFF3B82F6),
-              onChanged: (val) {
-                setState(() => _eraseTapeOnly = val);
-              },
+              onChanged: (val) => setState(() => _eraseTapeOnly = val),
             ),
 
             const Divider(color: Colors.white12, height: 16),
 
-            // 4. Erase all handwriting (ปุ่มล้างหมึกทั้งหมดในหน้า)
+            // 4. Erase all handwriting
             InkWell(
               onTap: widget.onClearAll,
               borderRadius: BorderRadius.circular(12),
