@@ -1,329 +1,261 @@
-import 'package:flex_color_picker/flex_color_picker.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:saber/components/theming/adaptive_alert_dialog.dart';
-import 'package:saber/components/toolbar/color_option.dart';
-import 'package:saber/data/extensions/color_extensions.dart';
-import 'package:saber/data/prefs.dart';
-import 'package:saber/i18n/strings.g.dart';
-
-typedef NamedColor = ({String name, Color color});
 
 class ColorBar extends StatefulWidget {
-  const new({
+  const ColorBar({
     super.key,
-    required this.axis,
     required this.setColor,
-    required this.currentColor,
-    required this.invert,
+    this.currentColor,
+    this.axis = Axis.horizontal,
+    this.invert = false,
   });
 
-  final Axis axis;
   final ValueChanged<Color> setColor;
   final Color? currentColor;
+  final Axis axis;
   final bool invert;
-
-  static List<NamedColor> get colorPresets =>
-      stows.preferGreyscale.value ? greyScaleColorOptions : normalColorOptions;
-  static final List<NamedColor> normalColorOptions = [
-    (name: t.editor.colors.black, color: Colors.black),
-    (name: t.editor.colors.red, color: Colors.red),
-    (name: t.editor.colors.orange, color: Colors.orange),
-    (name: t.editor.colors.yellow, color: Colors.yellow),
-    (name: t.editor.colors.green, color: Colors.green),
-    (name: t.editor.colors.cyan, color: Colors.cyan),
-    (name: t.editor.colors.blue, color: Colors.blue),
-    (name: t.editor.colors.purple, color: Colors.purple),
-    (name: t.editor.colors.pink, color: Colors.pink),
-    (name: t.editor.colors.white, color: Colors.white),
-    ..._pastelColorOptions,
-  ];
-  static final List<NamedColor> _pastelColorOptions = [
-    (
-      name: t.editor.colors.pastelRed,
-      color: const Color.fromRGBO(255, 173, 173, 1),
-    ),
-    (
-      name: t.editor.colors.pastelOrange,
-      color: const Color.fromRGBO(255, 214, 165, 1),
-    ),
-    (
-      name: t.editor.colors.pastelYellow,
-      color: const Color.fromRGBO(253, 255, 182, 1),
-    ),
-    (
-      name: t.editor.colors.pastelGreen,
-      color: const Color.fromRGBO(202, 255, 191, 1),
-    ),
-    (
-      name: t.editor.colors.pastelCyan,
-      color: const Color.fromRGBO(155, 246, 255, 1),
-    ),
-    (
-      name: t.editor.colors.pastelBlue,
-      color: const Color.fromRGBO(160, 196, 255, 1),
-    ),
-    (
-      name: t.editor.colors.pastelPurple,
-      color: const Color.fromRGBO(189, 178, 255, 1),
-    ),
-    (
-      name: t.editor.colors.pastelPink,
-      color: const Color.fromRGBO(255, 198, 255, 1),
-    ),
-  ];
-  static final List<NamedColor> greyScaleColorOptions = [
-    (name: t.editor.colors.black, color: Colors.black),
-    (name: t.editor.colors.darkGrey, color: Colors.grey[800] ?? Colors.black54),
-    (name: t.editor.colors.grey, color: Colors.grey),
-    (
-      name: t.editor.colors.lightGrey,
-      color: Colors.grey[200] ?? Colors.black12,
-    ),
-    (name: t.editor.colors.white, color: Colors.white),
-  ];
-  static final List<NamedColor> _allColors = [
-    ...normalColorOptions,
-    ...greyScaleColorOptions,
-  ];
-  static String findColorName(Color searchColor) {
-    for (final namedColor in _allColors) {
-      if (namedColor.color == searchColor) {
-        return namedColor.name;
-      }
-    }
-    return describeColor(searchColor);
-  }
-
-  @visibleForTesting
-  static String describeColor(Color color) {
-    final hsl = HSLColor.fromColor(color);
-
-    final String hueName;
-    if (hsl.saturation < 0.1 || hsl.lightness < 0.05 || hsl.lightness > 0.95) {
-      hueName = t.editor.colors.grey.toLowerCase();
-    } else {
-      hueName = switch (hsl.hue) {
-        < 10 => t.editor.colors.red.toLowerCase(),
-        < 35 => t.editor.colors.orange.toLowerCase(),
-        < 70 => t.editor.colors.yellow.toLowerCase(),
-        < 150 => t.editor.colors.green.toLowerCase(),
-        < 200 => t.editor.colors.cyan.toLowerCase(),
-        < 250 => t.editor.colors.blue.toLowerCase(),
-        < 285 => t.editor.colors.purple.toLowerCase(),
-        < 340 => t.editor.colors.pink.toLowerCase(),
-        _ => t.editor.colors.red.toLowerCase(),
-      };
-    }
-
-    final lightnessName = switch (hsl.lightness) {
-      < 0.35 => t.editor.colors.dark,
-      < 0.65 => null,
-      _ => t.editor.colors.light,
-    };
-
-    if (lightnessName == null) {
-      return t.editor.colors.customHue(h: hueName);
-    } else {
-      return t.editor.colors.customBrightnessHue(b: lightnessName, h: hueName);
-    }
-  }
-
-  /// Returns whether the color is now pinned.
-  static bool toggleColorPinned(String colorString) {
-    if (stows.pinnedColors.value.contains(colorString)) {
-      stows.pinnedColors.value.remove(colorString);
-      stows.recentColorsChronological.value.remove(colorString);
-      stows.recentColorsPositioned.value.remove(colorString);
-      if (stows.recentColorsChronological.value.length >=
-          stows.recentColorsLength.value) {
-        // if full, replace oldest
-        final oldestColor = stows.recentColorsChronological.value.removeAt(0);
-        stows.recentColorsChronological.value.add(colorString);
-        final int oldestColorPosition = stows.recentColorsPositioned.value
-            .indexOf(oldestColor);
-        stows.recentColorsPositioned.value[oldestColorPosition] = colorString;
-      } else {
-        // not full, add to end
-        stows.recentColorsChronological.value.add(colorString);
-        stows.recentColorsPositioned.value.insert(0, colorString);
-      }
-      return false;
-    } else {
-      // add to pinned and remove from recent colors
-      stows.pinnedColors.value.add(colorString);
-      stows.recentColorsChronological.value.remove(colorString);
-      stows.recentColorsPositioned.value.remove(colorString);
-      return true;
-    }
-  }
 
   @override
   State<ColorBar> createState() => _ColorBarState();
 }
 
 class _ColorBarState extends State<ColorBar> {
-  static var pickedColor = const Color.fromRGBO(255, 0, 0, 1);
+  int _selectedTab = 0; // 0: Color palette, 1: Color Set
+  double _hue = 45.0; // 0 - 360
+  double _saturation = 0.8;
+  double _value = 0.85;
+  double _opacity = 1.0;
 
   @override
-  Widget build(BuildContext context) {
-    final colorScheme = ColorScheme.of(context);
-
-    final children = <Widget>[
-      // pinned colors
-      if (stows.pinnedColors.value.isNotEmpty) ...[
-        const ColorOptionSeparatorIcon(icon: Icons.pin_drop),
-        for (final colorString in stows.pinnedColors.value)
-          ColorOption(
-            isSelected:
-                widget.currentColor?.withAlpha(255).toARGB32() ==
-                int.parse(colorString),
-            enabled: widget.currentColor != null,
-            onTap: () => widget.setColor(Color(int.parse(colorString))),
-            onLongPress: () =>
-                setState(() => ColorBar.toggleColorPinned(colorString)),
-            tooltip: ColorBar.findColorName(Color(int.parse(colorString))),
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: Color(int.parse(colorString))
-                    .withInversion(widget.invert),
-                shape: .circle,
-                border: Border.all(
-                  color: colorScheme.onSurface.withValues(alpha: 0.2),
-                  width: 1,
-                ),
-              ),
-            ),
-          ),
-      ],
-
-      const ColorOptionSeparatorIcon(icon: Icons.history),
-
-      // recent colors
-      for (final colorString in stows.recentColorsPositioned.value.reversed)
-        ColorOption(
-          isSelected:
-              widget.currentColor?.withAlpha(255).toARGB32() ==
-              int.parse(colorString),
-          enabled: widget.currentColor != null,
-          onTap: () => widget.setColor(Color(int.parse(colorString))),
-          onLongPress: () =>
-              setState(() => ColorBar.toggleColorPinned(colorString)),
-          tooltip: ColorBar.findColorName(Color(int.parse(colorString))),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: Color(int.parse(colorString)).withInversion(widget.invert),
-              shape: .circle,
-              border: Border.all(
-                color: colorScheme.onSurface.withValues(alpha: 0.2),
-                width: 1,
-              ),
-            ),
-          ),
-        ),
-      // placeholders for `recentColorsLength` recent colors
-      for (
-        int i = 0;
-        i <
-            stows.recentColorsLength.value -
-                stows.recentColorsPositioned.value.length;
-        ++i
-      )
-        ColorOption(
-          isSelected: false,
-          enabled: widget.currentColor != null,
-          onTap: null,
-          tooltip: null,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: Colors.transparent,
-              shape: .circle,
-              border: Border.all(
-                color: colorScheme.onSurface.withValues(alpha: 0.2),
-                width: 1,
-              ),
-            ),
-          ),
-        ),
-
-      const ColorOptionSeparatorIcon(icon: Icons.palette),
-
-      // custom color
-      ColorOption(
-        isSelected:
-            widget.currentColor?.withAlpha(255).toARGB32() ==
-            pickedColor.toARGB32(),
-        enabled: true,
-        onTap: () => openColorPicker(context),
-        tooltip: t.editor.colors.colorPicker,
-        child: const DecoratedBox(
-          decoration: BoxDecoration(color: Colors.transparent, shape: .circle),
-          child: Center(child: FaIcon(FontAwesomeIcons.droplet, size: 16)),
-        ),
-      ),
-
-      // color presets
-      for (final namedColor in ColorBar.colorPresets)
-        ColorOption(
-          isSelected:
-              widget.currentColor?.withAlpha(255).toARGB32() ==
-              namedColor.color.toARGB32(),
-          enabled: widget.currentColor != null,
-          onTap: () => widget.setColor(namedColor.color),
-          tooltip: namedColor.name,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: namedColor.color.withInversion(widget.invert),
-              shape: .circle,
-              border: Border.all(
-                color: colorScheme.onSurface.withValues(alpha: 0.2),
-                width: 1,
-              ),
-            ),
-          ),
-        ),
-    ];
-
-    return Center(
-      child: Padding(
-        padding: const .all(8),
-        child: SingleChildScrollView(
-          scrollDirection: widget.axis,
-          child: Flex(direction: widget.axis, children: children),
-        ),
-      ),
-    );
-  }
-
-  void openColorPicker(BuildContext context) async {
-    final bool? confirmChange = await showDialog(
-      context: context,
-      builder: (BuildContext context) => _colorPickerDialog(context),
-    );
-    if (confirmChange ?? false) {
-      widget.setColor(pickedColor.withInversion(widget.invert));
+  void initState() {
+    super.initState();
+    if (widget.currentColor != null) {
+      final hsv = HSVColor.fromColor(widget.currentColor!);
+      _hue = hsv.hue;
+      _saturation = hsv.saturation;
+      _value = hsv.value;
+      _opacity = hsv.alpha;
     }
   }
 
-  Widget _colorPickerDialog(BuildContext context) => AdaptiveAlertDialog(
-    title: Text(t.settings.accentColorPicker.pickAColor),
-    content: SingleChildScrollView(
-      child: ColorPicker(
-        color: pickedColor,
-        pickersEnabled: const {ColorPickerType.wheel: true},
-        onColorChanged: (Color color) {
-          pickedColor = color;
-        },
+  Color get _activeColor => HSVColor.fromAHSV(_opacity, _hue, _saturation, _value).toColor();
+
+  final List<Color> _palettePresets = const [
+    Color(0xFF1E1E1E), Color(0xFFDC2626), Color(0xFF2563EB), Color(0xFF16A34A), Color(0xFFEAB308),
+    Color(0xFF9333EA), Color(0xFFF97316), Color(0xFF06B6D4), Color(0xFFEC4899), Color(0xFFFFFFFF),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final hexString = _activeColor.toARGB32().toRadixString(16).padLeft(8, '0').substring(2).toUpperCase();
+
+    return Center(
+      child: Container(
+        width: 310,
+        margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E2235), // Dark Theme สไตล์ StarNote
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black45,
+              blurRadius: 16,
+              offset: Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // 1. สลับแท็บ Color palette / Color Set
+            Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(
+                children: [
+                  Expanded(child: _buildTabButton('Color palette', 0)),
+                  Expanded(child: _buildTabButton('Color Set', 1)),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            // 2. กล่องไล่ระดับสี (Gradient Saturation / Value Box)
+            GestureDetector(
+              onPanUpdate: (details) {
+                final box = context.findRenderObject() as RenderBox?;
+                if (box == null) return;
+                setState(() {
+                  _saturation = (details.localPosition.dx / 278).clamp(0.0, 1.0);
+                  _value = (1.0 - (details.localPosition.dy / 140)).clamp(0.0, 1.0);
+                  widget.setColor(_activeColor);
+                });
+              },
+              child: Container(
+                height: 140,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.transparent,
+                      Colors.black.withValues(alpha: 0.9),
+                    ],
+                  ),
+                  color: HSVColor.fromAHSV(1.0, _hue, 1.0, 1.0).toColor(),
+                ),
+                child: Stack(
+                  children: [
+                    Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        gradient: const LinearGradient(
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                          colors: [Colors.white, Colors.transparent],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // 3. Slider เลือกเฉดสี Spectrum
+            SliderTheme(
+              data: SliderTheme.of(context).copyWith(
+                trackHeight: 12,
+                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 9),
+                thumbColor: Colors.white,
+                activeTrackColor: Colors.transparent,
+                inactiveTrackColor: Colors.transparent,
+              ),
+              child: Container(
+                height: 14,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  gradient: const LinearGradient(
+                    colors: [
+                      Colors.red, Colors.yellow, Colors.green, Colors.cyan,
+                      Colors.blue, Colors.purple, Colors.red,
+                    ],
+                  ),
+                ),
+                child: Slider(
+                  value: _hue,
+                  min: 0.0,
+                  max: 360.0,
+                  onChanged: (val) {
+                    setState(() {
+                      _hue = val;
+                      widget.setColor(_activeColor);
+                    });
+                  },
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // 4. แสดงรหัส HEX, เปอร์เซ็นต์ Opacity และปุ่มบวก
+            Row(
+              children: [
+                const Icon(Icons.colorize, size: 18, color: Colors.white70),
+                const SizedBox(width: 8),
+                Text(
+                  'Hex $hexString',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  '${(_opacity * 100).toInt()}%',
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: _activeColor,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white38, width: 1.5),
+                  ),
+                  child: const Icon(Icons.add, size: 16, color: Colors.white),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+
+            // 5. ถาดสี Preset ด้านล่าง
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _palettePresets.map((preset) {
+                final isSelected = _activeColor.toARGB32() == preset.toARGB32();
+                return GestureDetector(
+                  onTap: () {
+                    final hsv = HSVColor.fromColor(preset);
+                    setState(() {
+                      _hue = hsv.hue;
+                      _saturation = hsv.saturation;
+                      _value = hsv.value;
+                      widget.setColor(preset);
+                    });
+                  },
+                  child: Container(
+                    width: 24,
+                    height: 24,
+                    decoration: BoxDecoration(
+                      color: preset,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: isSelected ? Colors.white : Colors.white24,
+                        width: isSelected ? 2 : 1,
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+        ),
       ),
-    ),
-    actions: [
-      CupertinoDialogAction(
-        child: Text(MaterialLocalizations.of(context).saveButtonLabel),
-        onPressed: () {
-          Navigator.of(context).pop(true);
-        },
+    );
+  }
+
+  Widget _buildTabButton(String label, int index) {
+    final isSelected = _selectedTab == index;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedTab = index),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF3B82F6).withValues(alpha: 0.25) : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isSelected ? const Color(0xFF3B82F6) : Colors.transparent,
+            width: 1,
+          ),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? const Color(0xFF60A5FA) : Colors.white60,
+            fontSize: 12,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+          ),
+        ),
       ),
-    ],
-  );
+    );
+  }
 }

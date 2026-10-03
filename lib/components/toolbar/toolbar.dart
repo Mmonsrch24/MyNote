@@ -1,5 +1,6 @@
 import 'dart:io';
-
+import 'package:saber/components/toolbar/eraser_modal.dart';
+import 'package:saber/components/toolbar/highlighter_modal.dart';
 import 'package:collapsible/collapsible.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -141,8 +142,14 @@ class _ToolbarState extends State<Toolbar> {
   }
 
   void toggleEraser() {
-    toolOptionsType.value = ToolOptions.hide;
-    widget.setTool(Eraser());
+    if (widget.currentTool is Eraser) {
+      toolOptionsType.value = (toolOptionsType.value == ToolOptions.eraser)
+          ? ToolOptions.hide
+          : ToolOptions.eraser;
+    } else {
+      toolOptionsType.value = ToolOptions.hide;
+      widget.setTool(Eraser());
+    }
   }
 
   void toggleColorOptions() {
@@ -216,9 +223,9 @@ class _ToolbarState extends State<Toolbar> {
                 getTool: () => Pen.currentPen,
                 setTool: widget.setTool,
               ),
-              ToolOptions.highlighter => PenModal(
+              ToolOptions.highlighter => HighlighterModal(
                 getTool: () => Highlighter.currentHighlighter,
-                setTool: widget.setTool,
+                setTool: (pen) => widget.setTool(pen),
               ),
               ToolOptions.pencil => PenModal(
                 getTool: () => Pencil.currentPencil,
@@ -227,6 +234,11 @@ class _ToolbarState extends State<Toolbar> {
               ToolOptions.select => SelectionBar(
                 duplicateSelection: widget.duplicateSelection,
                 deleteSelection: widget.deleteSelection,
+              ),
+              ToolOptions.eraser => EraserModal(
+                eraser: widget.currentTool is Eraser
+                    ? widget.currentTool as Eraser
+                    : Eraser(),
               ),
             },
           );
@@ -555,4 +567,4 @@ class _ToolbarState extends State<Toolbar> {
   }
 }
 
-enum ToolOptions { hide, pen, highlighter, pencil, select }
+enum ToolOptions { hide, pen, highlighter, pencil, select, eraser }
