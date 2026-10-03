@@ -39,10 +39,6 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _showDialogs() async {
-    await null; // initState must be completed before using context
-    if (!mounted) return;
-    UpdateManager.showUpdateDialog(context);
-    SentryConsentDialog.showIfNeeded(context);
   }
 
   void _setState() {
