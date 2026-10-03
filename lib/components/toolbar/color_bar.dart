@@ -1,5 +1,11 @@
 import 'package:flutter/material.dart';
 
+// คลาสจำลองโครงสร้าง ColorPreset เดิมเพื่อรองรับ colorPreset.color ใน editor.dart
+class ColorOptionPreset {
+  final Color color;
+  const ColorOptionPreset(this.color);
+}
+
 class ColorBar extends StatefulWidget {
   const ColorBar({
     super.key,
@@ -14,10 +20,18 @@ class ColorBar extends StatefulWidget {
   final Axis axis;
   final bool invert;
 
-  // คืนค่า static variable ให้ editor.dart ใช้งานได้ตามเดิม
-  static const List<Color> colorPresets = [
-    Color(0xFF1E1E1E), Color(0xFFDC2626), Color(0xFF2563EB), Color(0xFF16A34A), Color(0xFFEAB308),
-    Color(0xFF9333EA), Color(0xFFF97316), Color(0xFF06B6D4), Color(0xFFEC4899), Color(0xFFFFFFFF),
+  // คืนค่า colorPresets ที่มี getter .color ให้ editor.dart ใช้งานได้ตรงเป๊ะ
+  static const List<ColorOptionPreset> colorPresets = [
+    ColorOptionPreset(Color(0xFF1E1E1E)),
+    ColorOptionPreset(Color(0xFFDC2626)),
+    ColorOptionPreset(Color(0xFF2563EB)),
+    ColorOptionPreset(Color(0xFF16A34A)),
+    ColorOptionPreset(Color(0xFFEAB308)),
+    ColorOptionPreset(Color(0xFF9333EA)),
+    ColorOptionPreset(Color(0xFFF97316)),
+    ColorOptionPreset(Color(0xFF06B6D4)),
+    ColorOptionPreset(Color(0xFFEC4899)),
+    ColorOptionPreset(Color(0xFFFFFFFF)),
   ];
 
   @override
@@ -199,22 +213,22 @@ class _ColorBarState extends State<ColorBar> {
               spacing: 8,
               runSpacing: 8,
               children: ColorBar.colorPresets.map((preset) {
-                final isSelected = _activeColor.toARGB32() == preset.toARGB32();
+                final isSelected = _activeColor.toARGB32() == preset.color.toARGB32();
                 return GestureDetector(
                   onTap: () {
-                    final hsv = HSVColor.fromColor(preset);
+                    final hsv = HSVColor.fromColor(preset.color);
                     setState(() {
                       _hue = hsv.hue;
                       _saturation = hsv.saturation;
                       _value = hsv.value;
-                      widget.setColor(preset);
+                      widget.setColor(preset.color);
                     });
                   },
                   child: Container(
                     width: 24,
                     height: 24,
                     decoration: BoxDecoration(
-                      color: preset,
+                      color: preset.color,
                       shape: BoxShape.circle,
                       border: Border.all(
                         color: isSelected ? Colors.white : Colors.white24,
