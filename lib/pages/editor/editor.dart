@@ -1645,29 +1645,121 @@ class EditorState extends State<Editor> {
             ? null
             : AppBar(
                 toolbarHeight: kToolbarHeight,
-                title: widget.customTitle != null
-                    ? Text(widget.customTitle!)
-                    : Form(
-                        key: _filenameFormKey,
-                        autovalidateMode: AutovalidateMode.onUserInteraction,
-                        child: TextFormField(
-                          decoration: const InputDecoration(
-                            border: InputBorder.none,
-                          ),
-                          controller: filenameTextEditingController,
-                          onChanged: renameFile,
-                          autofocus: needsNaming,
-                          validator: _validateFilenameTextField,
+                elevation: 0.5,
+                scrolledUnderElevation: 1,
+                // 1. Back button พร้อมสถานะ Save
+                leading: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back),
+                      tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+                      onPressed: () async {
+                        await saveToFile();
+                        if (context.mounted) Navigator.of(context).maybePop();
+                      },
+                    ),
+                  ],
+                ),
+                // 2. ชื่อไฟล์ + ตัวเลขบอกหน้าปัจจุบัน (e.g. 1/3)
+                title: Row(
+                  children: [
+                    Expanded(
+                      child: widget.customTitle != null
+                          ? Text(
+                              widget.customTitle!,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                            )
+                          : Form(
+                              key: _filenameFormKey,
+                              autovalidateMode: AutovalidateMode.onUserInteraction,
+                              child: TextFormField(
+                                decoration: const InputDecoration(
+                                  border: InputBorder.none,
+                                  isDense: true,
+                                ),
+                                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                                controller: filenameTextEditingController,
+                                onChanged: renameFile,
+                                autofocus: needsNaming,
+                                validator: _validateFilenameTextField,
+                              ),
+                            ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.8),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '${currentPageIndex + 1}/${coreInfo.pages.length}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                leading: SaveIndicator(
-                  savingState: savingState,
-                  triggerSave: saveToFile,
+                    ),
+                  ],
                 ),
+                // 3. ปุ่มเครื่องมือจัดการไฟล์ (Export, เพิ่มหน้า, หน้าทั้งหมด, ตัวเลือกเพิ่มเติม)
                 actions: [
+                  // ปุ่ม Quick Export (PDF / PNG / SBA)
+                  PopupMenuButton<String>(
+                    tooltip: t.editor.toolbar.export,
+                    icon: const Icon(Icons.share_outlined),
+                    onSelected: (value) {
+                      switch (value) {
+                        case 'pdf':
+                          exportAsPdf(context);
+                          break;
+                        case 'png':
+                          exportAsPng(context);
+                          break;
+                        case 'sba':
+                          exportAsSba(context);
+                          break;
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(
+                        value: 'pdf',
+                        child: Row(
+                          children: [
+                            Icon(Icons.picture_as_pdf_outlined),
+                            SizedBox(width: 8),
+                            Text('Export as PDF'),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'png',
+                        child: Row(
+                          children: [
+                            Icon(Icons.image_outlined),
+                            SizedBox(width: 8),
+                            Text('Export as PNG'),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'sba',
+                        child: Row(
+                          children: [
+                            Icon(Icons.archive_outlined),
+                            SizedBox(width: 8),
+                            Text('Export as Vector (.sba)'),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                   IconButton(
                     icon: const AdaptiveIcon(
-                      icon: Icons.insert_page_break,
+                      icon: Icons.add_box_outlined,
                       cupertinoIcon: CupertinoIcons.add,
                     ),
                     tooltip: t.editor.menu.insertPage,
