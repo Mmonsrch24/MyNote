@@ -32,6 +32,7 @@ class _PenModalState extends State<PenModal> {
     }
 
     final isHighlighterOrPencil = currentPen is Highlighter || currentPen is Pencil;
+    final double penSize = currentPen.options.size.value;
 
     return Center(
       child: Container(
@@ -53,7 +54,7 @@ class _PenModalState extends State<PenModal> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // 1. Live Stroke Preview (พรีวิวเส้นสดๆ)
+            // 1. Live Stroke Preview
             Container(
               width: double.infinity,
               height: 44,
@@ -63,11 +64,11 @@ class _PenModalState extends State<PenModal> {
               ),
               alignment: Alignment.center,
               child: Container(
-                width: (currentPen.size * 3).clamp(8.0, 200.0),
-                height: currentPen.size.clamp(2.0, 32.0),
+                width: (penSize * 3).clamp(8.0, 200.0),
+                height: penSize.clamp(2.0, 32.0),
                 decoration: BoxDecoration(
                   color: currentPen.color,
-                  borderRadius: BorderRadius.circular(currentPen.size / 2),
+                  borderRadius: BorderRadius.circular(penSize / 2),
                 ),
               ),
             ),
@@ -77,7 +78,7 @@ class _PenModalState extends State<PenModal> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [2.0, 4.0, 8.0, 14.0].map((preset) {
-                final isSelected = (currentPen.size - preset).abs() < 0.6;
+                final isSelected = (penSize - preset).abs() < 0.6;
                 return ChoiceChip(
                   label: Text('${preset.toInt()} pt'),
                   labelStyle: TextStyle(
@@ -90,7 +91,7 @@ class _PenModalState extends State<PenModal> {
                   onSelected: (selected) {
                     if (selected) {
                       setState(() {
-                        currentPen.size = preset;
+                        currentPen.options.size.value = preset;
                       });
                     }
                   },
@@ -104,20 +105,20 @@ class _PenModalState extends State<PenModal> {
             ),
             const SizedBox(height: 8),
 
-            // 3. Slider ปรับความหนาของเส้นแบบละเอียด
+            // 3. Slider ปรับขนาดเส้น
             Row(
               children: [
                 const Icon(Icons.line_weight, size: 18),
                 Expanded(
                   child: Slider(
-                    value: currentPen.size.clamp(1.0, 30.0),
+                    value: penSize.clamp(1.0, 30.0),
                     min: 1.0,
                     max: 30.0,
                     divisions: 58,
-                    label: currentPen.size.toStringAsFixed(1),
+                    label: penSize.toStringAsFixed(1),
                     onChanged: (value) {
                       setState(() {
-                        currentPen.size = value;
+                        currentPen.options.size.value = value;
                       });
                     },
                   ),
@@ -125,7 +126,7 @@ class _PenModalState extends State<PenModal> {
                 SizedBox(
                   width: 32,
                   child: Text(
-                    currentPen.size.toStringAsFixed(0),
+                    penSize.toStringAsFixed(0),
                     textAlign: TextAlign.end,
                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                   ),
@@ -133,7 +134,7 @@ class _PenModalState extends State<PenModal> {
               ],
             ),
 
-            // 4. สลับชนิดปากกา (แสดงเฉพาะกรณีที่เป็นปากกาเขียนทั่วไป)
+            // 4. สลับชนิดปากกา
             if (!isHighlighterOrPencil) ...[
               const Divider(height: 16),
               Row(
