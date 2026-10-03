@@ -457,36 +457,58 @@ class _ToolbarState extends State<Toolbar> {
 
               const SizedBox(width: 4),
 
-              // 4. Color Palette Toggle
-              ValueListenableBuilder(
-                valueListenable: showColorOptions,
-                builder: (context, showColorOptions, child) {
-                  return ToolbarIconButton(
-                    tooltip: t.editor.toolbar.toggleColors,
-                    selected: showColorOptions,
-                    enabled: !widget.readOnly,
-                    onPressed: toggleColorOptions,
-                    padding: buttonPadding,
-                    child: child!,
-                  );
-                },
-                child: currentColor == null
-                    ? const Icon(Icons.palette_outlined, size: 20)
-                    : Container(
-                        width: 20,
-                        height: 20,
-                        decoration: BoxDecoration(
-                          color: currentColor
-                              .withInversion(invert)
-                              .withValues(alpha: 1),
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: colorScheme.outline,
-                            width: 2,
-                          ),
-                        ),
-                      ),
+              // 4. Quick Color Palette (5 สีหลักสไตล์ Samsung Notes)
+          ...[
+            const Color(0xFF1E1E1E), // ดำเข้ม
+            const Color(0xFF2563EB), // น้ำเงินจดโน้ต
+            const Color(0xFFDC2626), // แดงเน้นข้อความ
+            const Color(0xFF16A34A), // เขียวตรวจงาน
+            const Color(0xFFD97706), // ส้ม/เหลืองอมน้ำตาล
+          ].map((color) {
+            final isSelected = currentColor != null &&
+                currentColor.toARGB32() == color.toARGB32();
+            return InkWell(
+              onTap: widget.readOnly ? null : () => widget.setColor(color),
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 2),
+                width: 20,
+                height: 20,
+                decoration: BoxDecoration(
+                  color: color.withInversion(invert).withValues(alpha: 1),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: isSelected ? colorScheme.primary : colorScheme.outlineVariant,
+                    width: isSelected ? 2.5 : 1,
+                  ),
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color: colorScheme.primary.withValues(alpha: 0.3),
+                            blurRadius: 4,
+                            spreadRadius: 1,
+                          )
+                        ]
+                      : null,
+                ),
               ),
+            );
+          }),
+
+          // ปุ่มเปิดจานสีเต็มรูปแบบ (Custom Color Picker)
+          ValueListenableBuilder(
+            valueListenable: showColorOptions,
+            builder: (context, showColorOptions, child) {
+              return ToolbarIconButton(
+                tooltip: t.editor.toolbar.toggleColors,
+                selected: showColorOptions,
+                enabled: !widget.readOnly,
+                onPressed: toggleColorOptions,
+                padding: buttonPadding,
+                child: const Icon(Icons.palette_outlined, size: 18),
+              );
+            },
+          ),
 
               // 5. Stylus / Finger Toggle
               if (!stows.hideFingerDrawingToggle.value)
