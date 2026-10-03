@@ -1,4 +1,4 @@
-importimport 'dart:io';
+import 'dart:io';
 
 import 'package:collapsible/collapsible.dart';
 import 'package:flutter/cupertino.dart';
@@ -32,7 +32,8 @@ import 'package:saber/data/tools/shape_pen.dart';
 import 'package:saber/i18n/strings.g.dart';
 import 'package:stow/stow.dart';
 
-class const SettingsPage({super.key}) extends StatefulWidget {
+class SettingsPage extends StatefulWidget {
+  const SettingsPage({super.key});
   @override
   State<SettingsPage> createState() => _SettingsPageState();
 
