@@ -32,7 +32,7 @@ class _PenModalState extends State<PenModal> {
     }
 
     final isHighlighterOrPencil = currentPen is Highlighter || currentPen is Pencil;
-    final double penSize = currentPen.options.size.value;
+    final double penSize = currentPen.options.size;
 
     return Center(
       child: Container(
@@ -91,7 +91,7 @@ class _PenModalState extends State<PenModal> {
                   onSelected: (selected) {
                     if (selected) {
                       setState(() {
-                        currentPen.options.size.value = preset;
+                        currentPen.options.size = preset;
                       });
                     }
                   },
@@ -118,7 +118,7 @@ class _PenModalState extends State<PenModal> {
                     label: penSize.toStringAsFixed(1),
                     onChanged: (value) {
                       setState(() {
-                        currentPen.options.size.value = value;
+                        currentPen.options.size = value;
                       });
                     },
                   ),
