@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:saber/data/prefs.dart';
 import 'package:saber/data/tools/eraser.dart';
 
 class EraserModal extends StatefulWidget {
@@ -17,23 +18,22 @@ class EraserModal extends StatefulWidget {
 }
 
 class _EraserModalState extends State<EraserModal> {
-  bool _isStrokeEraser = true; // สลับโหมด Stroke กับ Area ใน UI
-  bool _eraseHighlighterOnly = false;
-  bool _eraseTapeOnly = false;
-
   @override
   Widget build(BuildContext context) {
+    // อ่านค่าโหมดจริงจาก Preferences ของ Saber
+    final isStrokeEraser = stows.eraserType.value == EraserType.wholeStroke;
+
     return Center(
       child: Container(
-        width: 300,
-        margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-        padding: const EdgeInsets.all(18),
+        width: 290,
+        margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: const Color(0xFF1E2235), // Dark Theme สไตล์ StarNote
-          borderRadius: BorderRadius.circular(24),
+          color: const Color(0xFF1E2235),
+          borderRadius: BorderRadius.circular(20),
           boxShadow: const [
             BoxShadow(
-              color: Colors.black45,
+              color: Colors.black54,
               blurRadius: 16,
               offset: Offset(0, 6),
             ),
@@ -43,92 +43,69 @@ class _EraserModalState extends State<EraserModal> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
             const Center(
               child: Text(
                 'Eraser',
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 16,
+                  fontSize: 15,
                   fontWeight: FontWeight.w600,
                 ),
               ),
             ),
-            const SizedBox(height: 16),
-
-            // 1. Handwriting eraser mode
+            const SizedBox(height: 14),
             const Text(
               'Handwriting eraser',
               style: TextStyle(color: Colors.white54, fontSize: 12),
             ),
             const SizedBox(height: 8),
 
-            // Stroke eraser
+            // Stroke eraser: ลบทั้งเส้น
             _buildModeTile(
               title: 'Stroke eraser',
-              isSelected: _isStrokeEraser,
-              onTap: () => setState(() => _isStrokeEraser = true),
+              isSelected: isStrokeEraser,
+              onTap: () {
+                setState(() {
+                  stows.eraserType.value = EraserType.wholeStroke;
+                });
+              },
             ),
             const SizedBox(height: 6),
 
-            // Area eraser
+            // Area eraser: ลบเฉพาะจุดที่โดน
             _buildModeTile(
               title: 'Area eraser',
-              isSelected: !_isStrokeEraser,
-              onTap: () => setState(() => _isStrokeEraser = false),
+              isSelected: !isStrokeEraser,
+              onTap: () {
+                setState(() {
+                  stows.eraserType.value = EraserType.partialStroke;
+                });
+              },
             ),
             const SizedBox(height: 10),
             const Divider(color: Colors.white12, height: 16),
 
-            // 2. Erase highlighter only
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              dense: true,
-              title: const Text(
-                'Erase highlighter only',
-                style: TextStyle(color: Colors.white70, fontSize: 13),
-              ),
-              value: _eraseHighlighterOnly,
-              activeColor: const Color(0xFF3B82F6),
-              onChanged: (val) => setState(() => _eraseHighlighterOnly = val),
-            ),
-
-            // 3. Erase tape only
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              dense: true,
-              title: const Text(
-                'Erase tape only',
-                style: TextStyle(color: Colors.white70, fontSize: 13),
-              ),
-              value: _eraseTapeOnly,
-              activeColor: const Color(0xFF3B82F6),
-              onChanged: (val) => setState(() => _eraseTapeOnly = val),
-            ),
-
-            const Divider(color: Colors.white12, height: 16),
-
-            // 4. Erase all handwriting
+            // ล้างลายมือทั้งหมดในหน้า
             InkWell(
               onTap: widget.onClearAll,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(10),
               child: Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
                 decoration: BoxDecoration(
                   color: Colors.redAccent.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    FaIcon(FontAwesomeIcons.trashCan, size: 14, color: Colors.redAccent),
+                    FaIcon(FontAwesomeIcons.trashCan, size: 13, color: Colors.redAccent),
                     SizedBox(width: 8),
                     Text(
                       'Erase all handwriting',
                       style: TextStyle(
                         color: Colors.redAccent,
-                        fontSize: 13,
+                        fontSize: 12,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -149,14 +126,14 @@ class _EraserModalState extends State<EraserModal> {
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(10),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
           color: isSelected
-              ? const Color(0xFF3B82F6).withValues(alpha: 0.15)
+              ? const Color(0xFF3B82F6).withValues(alpha: 0.2)
               : Colors.white.withValues(alpha: 0.04),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: isSelected ? const Color(0xFF3B82F6) : Colors.transparent,
             width: 1.5,

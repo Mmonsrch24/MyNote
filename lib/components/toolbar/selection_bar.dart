@@ -5,10 +5,16 @@ class SelectionBar extends StatefulWidget {
     super.key,
     required this.duplicateSelection,
     required this.deleteSelection,
+    this.cutSelection,
+    this.pasteSelection,
+    this.onCrop,
   });
 
   final VoidCallback duplicateSelection;
   final VoidCallback deleteSelection;
+  final VoidCallback? cutSelection;
+  final VoidCallback? pasteSelection;
+  final VoidCallback? onCrop;
 
   @override
   State<SelectionBar> createState() => _SelectionBarState();
@@ -41,14 +47,28 @@ class _SelectionBarState extends State<SelectionBar> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _buildActionButton('Cut', () {}),
+                _buildActionButton('Cut', () {
+                  if (widget.cutSelection != null) {
+                    widget.cutSelection!();
+                  } else {
+                    widget.duplicateSelection();
+                    widget.deleteSelection();
+                  }
+                }),
                 _buildActionButton('Copy', widget.duplicateSelection),
-                _buildActionButton('Paste', () {}),
+                _buildActionButton('Paste', () {
+                  widget.pasteSelection?.call();
+                }),
                 _buildActionButton('Delete', widget.deleteSelection, isDestructive: true),
                 _buildActionButton('Change style', () {}),
-                _buildActionButton('Crop', () {}),
+                _buildActionButton('Crop', () {
+                  widget.onCrop?.call();
+                }),
                 _buildActionButton('Lasso crop', () {}),
-                const VerticalDivider(width: 12, color: Colors.white24, thickness: 1),
+                const SizedBox(
+                  height: 16,
+                  child: VerticalDivider(width: 12, color: Colors.white24, thickness: 1),
+                ),
                 // ปุ่มสามจุด More
                 IconButton(
                   icon: Icon(

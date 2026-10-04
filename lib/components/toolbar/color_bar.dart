@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-// คลาสจำลองโครงสร้าง ColorPreset เดิมเพื่อรองรับ colorPreset.color ใน editor.dart
 class ColorOptionPreset {
   final Color color;
   const ColorOptionPreset(this.color);
@@ -20,7 +19,6 @@ class ColorBar extends StatefulWidget {
   final Axis axis;
   final bool invert;
 
-  // คืนค่า colorPresets ที่มี getter .color ให้ editor.dart ใช้งานได้ตรงเป๊ะ
   static const List<ColorOptionPreset> colorPresets = [
     ColorOptionPreset(Color(0xFF1E1E1E)),
     ColorOptionPreset(Color(0xFFDC2626)),
@@ -40,8 +38,8 @@ class ColorBar extends StatefulWidget {
 
 class _ColorBarState extends State<ColorBar> {
   int _selectedTab = 0; // 0: Color palette, 1: Color Set
-  double _hue = 45.0;
-  double _saturation = 0.8;
+  double _hue = 140.0; // ค่าเริ่มต้น (เฉดเขียว)
+  double _saturation = 0.85;
   double _value = 0.85;
   double _opacity = 1.0;
 
@@ -51,30 +49,35 @@ class _ColorBarState extends State<ColorBar> {
     if (widget.currentColor != null) {
       final hsv = HSVColor.fromColor(widget.currentColor!);
       _hue = hsv.hue;
-      _saturation = hsv.saturation;
-      _value = hsv.value;
+      _saturation = hsv.saturation == 0 ? 0.85 : hsv.saturation;
+      _value = hsv.value == 0 ? 0.85 : hsv.value;
       _opacity = hsv.alpha;
     }
   }
 
   Color get _activeColor => HSVColor.fromAHSV(_opacity, _hue, _saturation, _value).toColor();
 
+  void _updateColor(Color newColor) {
+    widget.setColor(newColor);
+  }
+
   @override
   Widget build(BuildContext context) {
     final hexString = _activeColor.toARGB32().toRadixString(16).padLeft(8, '0').substring(2).toUpperCase();
+    final pureHueColor = HSVColor.fromAHSV(1.0, _hue, 1.0, 1.0).toColor();
 
     return Center(
       child: Container(
         width: 310,
-        margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+        margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: const Color(0xFF1E2235),
+          color: const Color(0xFF1E2235), // Dark Theme ทึบแสง ป้องกันการทะลุเห็นพื้นหลัง
           borderRadius: BorderRadius.circular(24),
           boxShadow: const [
             BoxShadow(
-              color: Colors.black45,
-              blurRadius: 16,
+              color: Colors.black54,
+              blurRadius: 18,
               offset: Offset(0, 6),
             ),
           ],
@@ -82,7 +85,7 @@ class _ColorBarState extends State<ColorBar> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // 1. สลับแท็บ Color palette / Color Set
+            // 1. แถบสลับแท็บ Color palette / Color Set
             Container(
               padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
@@ -98,49 +101,66 @@ class _ColorBarState extends State<ColorBar> {
             ),
             const SizedBox(height: 14),
 
-            // 2. กล่อง Saturation / Value Gradient Box
-            GestureDetector(
-              onPanUpdate: (details) {
-                setState(() {
-                  _saturation = (details.localPosition.dx / 278).clamp(0.0, 1.0);
-                  _value = (1.0 - (details.localPosition.dy / 140)).clamp(0.0, 1.0);
-                  widget.setColor(_activeColor);
-                });
-              },
-              child: Container(
-                height: 140,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.transparent,
-                      Colors.black.withValues(alpha: 0.9),
-                    ],
-                  ),
-                  color: HSVColor.fromAHSV(1.0, _hue, 1.0, 1.0).toColor(),
-                ),
-                child: Stack(
-                  children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
-                        gradient: const LinearGradient(
-                          begin: Alignment.centerLeft,
-                          end: Alignment.centerRight,
-                          colors: [Colors.white, Colors.transparent],
-                        ),
-                      ),
+            // 2. กล่อง Gradient Saturation/Value ปรับตาม _hue จริง 100%
+            LayoutBuilder(
+              builder: (context, constraints) {
+                return GestureDetector(
+                  onPanDown: (details) => _handleColorPick(details.localPosition, constraints.maxWidth),
+                  onPanUpdate: (details) => _handleColorPick(details.localPosition, constraints.maxWidth),
+                  child: Container(
+                    height: 135,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      color: pureHueColor, // สีพื้นหลังอิงตาม Hue ที่เลื่อนสไลเดอร์
                     ),
-                  ],
-                ),
-              ),
+                    child: Stack(
+                      children: [
+                        // ไล่ระดับความขาว (Saturation จากซ้ายไปขวา)
+                        Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(16),
+                            gradient: const LinearGradient(
+                              begin: Alignment.centerLeft,
+                              end: Alignment.centerRight,
+                              colors: [Colors.white, Colors.transparent],
+                            ),
+                          ),
+                        ),
+                        // ไล่ระดับความมืด (Value จากบนลงล่าง)
+                        Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(16),
+                            gradient: const LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [Colors.transparent, Colors.black],
+                            ),
+                          ),
+                        ),
+                        // วงแหวนบอกตำแหน่งสีที่เลือกปัจจุบัน
+                        Positioned(
+                          left: (_saturation * constraints.maxWidth - 9).clamp(0.0, constraints.maxWidth - 18),
+                          top: ((1.0 - _value) * 135 - 9).clamp(0.0, 135 - 18),
+                          child: Container(
+                            width: 18,
+                            height: 18,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 2),
+                              boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 4)],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
             ),
             const SizedBox(height: 12),
 
-            // 3. Slider Hue Spectrum
+            // 3. สไลเดอร์เฉดสี Spectrum
             SliderTheme(
               data: SliderTheme.of(context).copyWith(
                 trackHeight: 12,
@@ -167,7 +187,7 @@ class _ColorBarState extends State<ColorBar> {
                   onChanged: (val) {
                     setState(() {
                       _hue = val;
-                      widget.setColor(_activeColor);
+                      _updateColor(_activeColor);
                     });
                   },
                 ),
@@ -175,7 +195,7 @@ class _ColorBarState extends State<ColorBar> {
             ),
             const SizedBox(height: 12),
 
-            // 4. Hex & Opacity
+            // 4. Hex, Opacity และกล่องสีพรีวิวพร้อมปุ่มบวก
             Row(
               children: [
                 const Icon(Icons.colorize, size: 18, color: Colors.white70),
@@ -200,7 +220,7 @@ class _ColorBarState extends State<ColorBar> {
                   decoration: BoxDecoration(
                     color: _activeColor,
                     shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white38, width: 1.5),
+                    border: Border.all(color: Colors.white60, width: 1.5),
                   ),
                   child: const Icon(Icons.add, size: 16, color: Colors.white),
                 ),
@@ -208,7 +228,7 @@ class _ColorBarState extends State<ColorBar> {
             ),
             const SizedBox(height: 14),
 
-            // 5. Preset Colors
+            // 5. ถาดสี Preset ด้านล่าง (เลือกแล้วสีเปลี่ยนทันที)
             Wrap(
               spacing: 8,
               runSpacing: 8,
@@ -219,9 +239,9 @@ class _ColorBarState extends State<ColorBar> {
                     final hsv = HSVColor.fromColor(preset.color);
                     setState(() {
                       _hue = hsv.hue;
-                      _saturation = hsv.saturation;
+                      _saturation = hsv.saturation == 0 ? 0.0 : hsv.saturation;
                       _value = hsv.value;
-                      widget.setColor(preset.color);
+                      _updateColor(preset.color);
                     });
                   },
                   child: Container(
@@ -243,6 +263,14 @@ class _ColorBarState extends State<ColorBar> {
         ),
       ),
     );
+  }
+
+  void _handleColorPick(Offset localPosition, double width) {
+    setState(() {
+      _saturation = (localPosition.dx / width).clamp(0.0, 1.0);
+      _value = (1.0 - (localPosition.dy / 135)).clamp(0.0, 1.0);
+      _updateColor(_activeColor);
+    });
   }
 
   Widget _buildTabButton(String label, int index) {

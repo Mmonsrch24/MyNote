@@ -98,6 +98,7 @@ class Editor extends StatefulWidget {
 
 class EditorState extends State<Editor> {
   final log = Logger('EditorState');
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   late var coreInfo = EditorCoreInfo.placeholder;
 
@@ -1641,6 +1642,41 @@ class EditorState extends State<Editor> {
         );
       },
       child: Scaffold(
+        key: _scaffoldKey,
+        endDrawer: Drawer(
+          backgroundColor: const Color(0xFF1E2235), // Dark Theme สีเข้มสไตล์ StarNote
+          child: SafeArea(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Page Overview',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, color: Colors.white70),
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(color: Colors.white12, height: 1),
+                Expanded(
+                  child: pageManager(context),
+                ),
+              ],
+            ),
+          ),
+        ),
         appBar: DynamicMaterialApp.isFullscreen
             ? null
             : AppBar(
@@ -1779,16 +1815,53 @@ class EditorState extends State<Editor> {
                       icon: Icons.grid_view,
                       cupertinoIcon: CupertinoIcons.rectangle_grid_2x2,
                     ),
+                    // 1. ปุ่มบวกกระดาษ (ของเดิม ไม่ต้องยุ่ง)
+                  IconButton(
+                    icon: const AdaptiveIcon(
+                      icon: Icons.add_box_outlined,
+                      cupertinoIcon: CupertinoIcons.add,
+                    ),
+                    tooltip: t.editor.menu.insertPage,
+                    onPressed: () => setState(() {
+                      final currentPageIndex = this.currentPageIndex;
+                      insertPageAfter(currentPageIndex);
+                      CanvasGestureDetector.scrollToPage(
+                        pageIndex: currentPageIndex + 1,
+                        pages: coreInfo.pages,
+                        screenWidth: MediaQuery.sizeOf(context).width,
+                        transformationController: _transformationController,
+                      );
+                    }),
+                  ),
+
+                  // 2. ปุ่มตารางสี่ช่อง (อันที่เราเพิ่งวางทับไป)
+                  IconButton(
+                    icon: const AdaptiveIcon(
+                      icon: Icons.grid_view,
+                      cupertinoIcon: CupertinoIcons.rectangle_grid_2x2,
+                    ),
                     tooltip: t.editor.pages,
                     onPressed: () {
-                      showDialog(
-                        context: context,
-                        builder: (context) => AdaptiveAlertDialog(
-                          title: Text(t.editor.pages),
-                          content: pageManager(context),
-                          actions: const [],
+                      _scaffoldKey.currentState?.openEndDrawer();
+                    },
+                  ),
+                  // 3. ปุ่มสามจุด (ของเดิม ไม่ต้องยุ่ง)
+                      IconButton(
+                        icon: const AdaptiveIcon(
+                          icon: Icons.more_vert,
+                          cupertinoIcon: CupertinoIcons.ellipsis_vertical,
                         ),
-                      );
+                        onPressed: () {
+                          showModalBottomSheet(
+                            context: context,
+                            builder: (context) => bottomSheet(context),
+                            isScrollControlled: true,
+                            showDragHandle: true,
+                            backgroundColor: colorScheme.surface,
+                            constraints: const BoxConstraints(maxWidth: 500),
+                          );
+                        },
+                      ),
                     },
                   ),
                   IconButton(

@@ -189,26 +189,6 @@ class _ToolbarState extends State<Toolbar> {
     final bars = <Widget>[
       // Dropdown / Popover Panels
       ValueListenableBuilder(
-        valueListenable: showExportOptions,
-        builder: (context, showExportOptions, child) {
-          return Collapsible(
-            axis: isToolbarVertical
-                ? CollapsibleAxis.horizontal
-                : CollapsibleAxis.vertical,
-            maintainState: true,
-            collapsed: !showExportOptions,
-            child: child!,
-          );
-        },
-        child: ExportBar(
-          axis: isToolbarVertical ? Axis.vertical : Axis.horizontal,
-          toggleExportBar: toggleExportBar,
-          exportAsSba: widget.exportAsSba,
-          exportAsPdf: widget.exportAsPdf,
-          exportAsPng: widget.exportAsPng,
-        ),
-      ),
-      ValueListenableBuilder(
         valueListenable: toolOptionsType,
         builder: (context, toolOptionsType, _) {
           return Collapsible(
@@ -217,30 +197,38 @@ class _ToolbarState extends State<Toolbar> {
                 : CollapsibleAxis.vertical,
             maintainState: true,
             collapsed: toolOptionsType == ToolOptions.hide,
-            child: switch (toolOptionsType) {
-              ToolOptions.hide => const SizedBox.square(dimension: SizePicker.smallLength),
-              ToolOptions.pen => PenModal(
-                getTool: () => Pen.currentPen,
-                setTool: widget.setTool,
-              ),
-              ToolOptions.highlighter => HighlighterModal(
-                getTool: () => Highlighter.currentHighlighter,
-                setTool: (pen) => widget.setTool(pen),
-              ),
-              ToolOptions.pencil => PenModal(
-                getTool: () => Pencil.currentPencil,
-                setTool: widget.setTool,
-              ),
-              ToolOptions.select => SelectionBar(
-                duplicateSelection: widget.duplicateSelection,
-                deleteSelection: widget.deleteSelection,
-              ),
-              ToolOptions.eraser => EraserModal(
-                eraser: widget.currentTool is Eraser
-                    ? widget.currentTool as Eraser
-                    : Eraser(),
-              ),
-            },
+            child: Material(
+              color: Colors.transparent, // โปร่งแสง 100% ไม่สร้างแผ่นทึบคลุมหน้าจอ
+              child: switch (toolOptionsType) {
+                ToolOptions.hide => const SizedBox.shrink(),
+                ToolOptions.pen => PenModal(
+                  getTool: () => Pen.currentPen,
+                  setTool: widget.setTool,
+                ),
+                ToolOptions.highlighter => HighlighterModal(
+                  getTool: () => Highlighter.currentHighlighter,
+                  setTool: (pen) => widget.setTool(pen),
+                ),
+                ToolOptions.pencil => PenModal(
+                  getTool: () => Pencil.currentPencil,
+                  setTool: widget.setTool,
+                ),
+                ToolOptions.select => SelectionBar(
+                    duplicateSelection: widget.duplicateSelection,
+                    deleteSelection: widget.deleteSelection,
+                    pasteSelection: widget.paste,
+                  ),
+                ToolOptions.eraser => EraserModal(
+                  eraser: widget.currentTool is Eraser
+                      ? widget.currentTool as Eraser
+                      : Eraser(),
+                  onClearAll: () {
+                    // ปิด popup แล้วเรียกคำสั่งล้างหมึก
+                    toolOptionsType.value = ToolOptions.hide;
+                  },
+                ),
+              },
+            ),
           );
         },
       ),
@@ -353,7 +341,7 @@ class _ToolbarState extends State<Toolbar> {
                         icon: Icons.undo,
                         cupertinoIcon: CupertinoIcons.arrow_uturn_left,
                       ),
-                    ),
+                    ),ValueListenableBuilder
                     ToolbarIconButton(
                       tooltip: t.editor.toolbar.redo,
                       enabled: !widget.readOnly && widget.isRedoPossible,
@@ -480,7 +468,13 @@ class _ToolbarState extends State<Toolbar> {
             final isSelected = currentColor != null &&
                 currentColor.toARGB32() == color.toARGB32();
             return InkWell(
-              onTap: widget.readOnly ? null : () => widget.setColor(color),
+              onTap: widget.readOnly
+                  ? null
+                  : () {
+                      setState(() {
+                        widget.setColor(color);
+                      });
+                    },
               borderRadius: BorderRadius.circular(12),
               child: Container(
                 margin: const EdgeInsets.symmetric(horizontal: 2),
