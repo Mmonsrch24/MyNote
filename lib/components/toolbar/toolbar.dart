@@ -1,6 +1,4 @@
 import 'dart:io';
-import 'package:saber/components/toolbar/eraser_modal.dart';
-import 'package:saber/components/toolbar/highlighter_modal.dart';
 import 'package:collapsible/collapsible.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -12,12 +10,13 @@ import 'package:saber/components/theming/adaptive_icon.dart';
 import 'package:saber/components/theming/dynamic_material_app.dart';
 import 'package:saber/components/theming/uni_icon.dart';
 import 'package:saber/components/toolbar/color_bar.dart';
+import 'package:saber/components/toolbar/eraser_modal.dart';
 import 'package:saber/components/toolbar/export_bar.dart';
+import 'package:saber/components/toolbar/highlighter_modal.dart';
 import 'package:saber/components/toolbar/pen_modal.dart';
 import 'package:saber/components/toolbar/selection_bar.dart';
 import 'package:saber/components/toolbar/size_picker.dart';
 import 'package:saber/components/toolbar/toolbar_button.dart';
-import 'package:saber/data/editor/page.dart';
 import 'package:saber/data/extensions/color_extensions.dart';
 import 'package:saber/data/prefs.dart';
 import 'package:saber/data/tools/_tool.dart';
@@ -187,20 +186,41 @@ class _ToolbarState extends State<Toolbar> {
     }
 
     final bars = <Widget>[
-      // Dropdown / Popover Panels
+      // Export Popover
       ValueListenableBuilder(
-        valueListenable: toolOptionsType,
-        builder: (context, toolOptionsType, _) {
+        valueListenable: showExportOptions,
+        builder: (context, showExportOptions, child) {
           return Collapsible(
             axis: isToolbarVertical
                 ? CollapsibleAxis.horizontal
                 : CollapsibleAxis.vertical,
             maintainState: true,
-            collapsed: toolOptionsType == ToolOptions.hide,
+            collapsed: !showExportOptions,
+            child: child!,
+          );
+        },
+        child: ExportBar(
+          axis: isToolbarVertical ? Axis.vertical : Axis.horizontal,
+          toggleExportBar: toggleExportBar,
+          exportAsSba: widget.exportAsSba,
+          exportAsPdf: widget.exportAsPdf,
+          exportAsPng: widget.exportAsPng,
+        ),
+      ),
+      // Tool Options Popovers
+      ValueListenableBuilder(
+        valueListenable: toolOptionsType,
+        builder: (context, toolOptions, _) {
+          return Collapsible(
+            axis: isToolbarVertical
+                ? CollapsibleAxis.horizontal
+                : CollapsibleAxis.vertical,
+            maintainState: true,
+            collapsed: toolOptions == ToolOptions.hide,
             child: Material(
-              color: Colors.transparent, // โปร่งแสง 100% ไม่สร้างแผ่นทึบคลุมหน้าจอ
-              child: switch (toolOptionsType) {
-                ToolOptions.hide => const SizedBox.shrink(),
+              color: Colors.transparent,
+              child: switch (toolOptions) {
+                ToolOptions.hide => const SizedBox.square(dimension: SizePicker.smallLength),
                 ToolOptions.pen => PenModal(
                   getTool: () => Pen.currentPen,
                   setTool: widget.setTool,
@@ -214,16 +234,15 @@ class _ToolbarState extends State<Toolbar> {
                   setTool: widget.setTool,
                 ),
                 ToolOptions.select => SelectionBar(
-                    duplicateSelection: widget.duplicateSelection,
-                    deleteSelection: widget.deleteSelection,
-                    pasteSelection: widget.paste,
-                  ),
+                  duplicateSelection: widget.duplicateSelection,
+                  deleteSelection: widget.deleteSelection,
+                  pasteSelection: widget.paste,
+                ),
                 ToolOptions.eraser => EraserModal(
                   eraser: widget.currentTool is Eraser
                       ? widget.currentTool as Eraser
                       : Eraser(),
                   onClearAll: () {
-                    // ปิด popup แล้วเรียกคำสั่งล้างหมึก
                     toolOptionsType.value = ToolOptions.hide;
                   },
                 ),
@@ -232,6 +251,7 @@ class _ToolbarState extends State<Toolbar> {
           );
         },
       ),
+      // Color Options Popover
       ValueListenableBuilder(
         valueListenable: showColorOptions,
         builder: (context, showColorOptions, child) {
@@ -251,6 +271,7 @@ class _ToolbarState extends State<Toolbar> {
           invert: invert,
         ),
       ),
+      // Text Quill Toolbar
       ValueListenableBuilder(
         valueListenable: widget.quillFocus,
         builder: (context, quill, _) {
@@ -300,7 +321,7 @@ class _ToolbarState extends State<Toolbar> {
         },
       ),
 
-      // Main Floating Drawing Bar (Samsung Notes Layout)
+      // Main Floating Drawing Bar
       Center(
         child: Container(
           margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
@@ -323,7 +344,7 @@ class _ToolbarState extends State<Toolbar> {
             spacing: 4,
             runSpacing: 4,
             children: [
-              // 1. Group Undo / Redo (ชิดซ้ายสุด)
+              // 1. Group Undo / Redo
               Container(
                 decoration: BoxDecoration(
                   color: colorScheme.surface.withValues(alpha: 0.6),
@@ -341,7 +362,7 @@ class _ToolbarState extends State<Toolbar> {
                         icon: Icons.undo,
                         cupertinoIcon: CupertinoIcons.arrow_uturn_left,
                       ),
-                    ),ValueListenableBuilder
+                    ),
                     ToolbarIconButton(
                       tooltip: t.editor.toolbar.redo,
                       enabled: !widget.readOnly && widget.isRedoPossible,
@@ -358,7 +379,7 @@ class _ToolbarState extends State<Toolbar> {
 
               const SizedBox(width: 4),
 
-              // 2. Main Writing Tools (ปากกา, ดินสอ, ไฮไลต์, ยางลบ, บ่วงบาศก์)
+              // 2. Main Writing Tools
               ToolbarIconButton(
                 tooltip: Pen.currentPen.name,
                 selected: widget.currentTool == Pen.currentPen,
@@ -432,7 +453,7 @@ class _ToolbarState extends State<Toolbar> {
 
               const SizedBox(width: 4),
 
-              // 3. Media & Text Tools (ข้อความ, รูปภาพ)
+              // 3. Media & Text Tools
               ToolbarIconButton(
                 tooltip: t.editor.toolbar.text,
                 selected: widget.textEditing,
@@ -457,64 +478,64 @@ class _ToolbarState extends State<Toolbar> {
 
               const SizedBox(width: 4),
 
-              // 4. Quick Color Palette (5 สีหลักสไตล์ Samsung Notes)
-          ...[
-            const Color(0xFF1E1E1E), // ดำเข้ม
-            const Color(0xFF2563EB), // น้ำเงินจดโน้ต
-            const Color(0xFFDC2626), // แดงเน้นข้อความ
-            const Color(0xFF16A34A), // เขียวตรวจงาน
-            const Color(0xFFD97706), // ส้ม/เหลืองอมน้ำตาล
-          ].map((color) {
-            final isSelected = currentColor != null &&
-                currentColor.toARGB32() == color.toARGB32();
-            return InkWell(
-              onTap: widget.readOnly
-                  ? null
-                  : () {
-                      setState(() {
-                        widget.setColor(color);
-                      });
-                    },
-              borderRadius: BorderRadius.circular(12),
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 2),
-                width: 20,
-                height: 20,
-                decoration: BoxDecoration(
-                  color: color.withInversion(invert).withValues(alpha: 1),
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: isSelected ? colorScheme.primary : colorScheme.outlineVariant,
-                    width: isSelected ? 2.5 : 1,
+              // 4. Quick Color Palette
+              ...[
+                const Color(0xFF1E1E1E),
+                const Color(0xFF2563EB),
+                const Color(0xFFDC2626),
+                const Color(0xFF16A34A),
+                const Color(0xFFD97706),
+              ].map((color) {
+                final isSelected = currentColor != null &&
+                    currentColor.toARGB32() == color.toARGB32();
+                return InkWell(
+                  onTap: widget.readOnly
+                      ? null
+                      : () {
+                          setState(() {
+                            widget.setColor(color);
+                          });
+                        },
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 2),
+                    width: 20,
+                    height: 20,
+                    decoration: BoxDecoration(
+                      color: color.withInversion(invert).withValues(alpha: 1),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: isSelected ? colorScheme.primary : colorScheme.outlineVariant,
+                        width: isSelected ? 2.5 : 1,
+                      ),
+                      boxShadow: isSelected
+                          ? [
+                              BoxShadow(
+                                color: colorScheme.primary.withValues(alpha: 0.3),
+                                blurRadius: 4,
+                                spreadRadius: 1,
+                              )
+                            ]
+                          : null,
+                    ),
                   ),
-                  boxShadow: isSelected
-                      ? [
-                          BoxShadow(
-                            color: colorScheme.primary.withValues(alpha: 0.3),
-                            blurRadius: 4,
-                            spreadRadius: 1,
-                          )
-                        ]
-                      : null,
-                ),
-              ),
-            );
-          }),
+                );
+              }),
 
-          // ปุ่มเปิดจานสีเต็มรูปแบบ (Custom Color Picker)
-          ValueListenableBuilder(
-            valueListenable: showColorOptions,
-            builder: (context, showColorOptions, child) {
-              return ToolbarIconButton(
-                tooltip: t.editor.toolbar.toggleColors,
-                selected: showColorOptions,
-                enabled: !widget.readOnly,
-                onPressed: toggleColorOptions,
-                padding: buttonPadding,
-                child: const Icon(Icons.palette_outlined, size: 18),
-              );
-            },
-          ),
+              // ปุ่มเปิดจานสีเต็ม
+              ValueListenableBuilder(
+                valueListenable: showColorOptions,
+                builder: (context, showColorOptions, child) {
+                  return ToolbarIconButton(
+                    tooltip: t.editor.toolbar.toggleColors,
+                    selected: showColorOptions,
+                    enabled: !widget.readOnly,
+                    onPressed: toggleColorOptions,
+                    padding: buttonPadding,
+                    child: const Icon(Icons.palette_outlined, size: 18),
+                  );
+                },
+              ),
 
               // 5. Stylus / Finger Toggle
               if (!stows.hideFingerDrawingToggle.value)

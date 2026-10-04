@@ -67,20 +67,10 @@ class Editor extends StatefulWidget {
   final String? customTitle;
   final String? pdfPath;
 
-  /// The file extension used by the app.
-  /// Files with this extension are
-  /// encoded in BSON format.
   static const extension = '.sbn2';
-
-  /// The old file extension used by the app.
-  /// Files with this extension are
-  /// encoded in JSON format.
   static const extensionOldJson = '.sbn';
-
   static const double gapBetweenPages = 16;
 
-  /// Returns true if [path] belongs to a hidden file
-  /// used by other functions of the app
   static bool isReservedPath(String path) {
     return _reservedFilePaths.any((regex) => regex.hasMatch(path));
   }
@@ -89,7 +79,6 @@ class Editor extends StatefulWidget {
     RegExp(RegExp.escape(Whiteboard.filePath)),
   ];
 
-  /// Whether the platform can rasterize a pdf
   static var canRasterPdf = true;
 
   @override
@@ -165,29 +154,19 @@ class EditorState extends State<Editor> {
   Timer? _delayedSaveTimer;
   Timer? _watchServerTimer;
 
-  // used to prevent accidentally drawing when pinch zooming
   var lastSeenPointerCount = 0;
   Timer? _lastSeenPointerCountTimer;
 
   ValueNotifier<QuillStruct?> quillFocus = ValueNotifier(null);
 
-  /// The last non-Eraser [currentTool] value.
   late Tool _lastNonEraserTool = Pen.currentPen;
-
-  /// If the stylus button is pressed, or was pressed, during the current draw gesture.
-  ///
-  /// For now, this also includes when an [PointerDeviceKind.inverseStylus] is
-  /// used since the stylus rear-end and stylus button currently act the same.
-  /// If we add customized button bindings, we may have to separate this again.
   var stylusButtonWasPressed = false;
 
   @override
   void initState() {
     DynamicMaterialApp.addFullscreenListener(_setState);
-
     _initAsync();
     _assignKeybindings();
-
     super.initState();
   }
 
@@ -250,10 +229,7 @@ class EditorState extends State<Editor> {
     if (coreInfo.filePath == Whiteboard.filePath &&
         stows.autoClearWhiteboardOnExit.value &&
         Whiteboard.needsToAutoClearWhiteboard) {
-      // clear whiteboard (and add to history)
       clearAllPages();
-
-      // save cleared whiteboard
       await saveToFile();
       Whiteboard.needsToAutoClearWhiteboard = false;
     } else {
@@ -289,8 +265,6 @@ class EditorState extends State<Editor> {
     if (_ctrlShiftZ != null) Keybinder.remove(_ctrlShiftZ!);
   }
 
-  /// Creates pages until the given page index exists,
-  /// plus an extra blank page
   void createPage(int pageIndex) {
     while (pageIndex >= coreInfo.pages.length - 1) {
       final page = EditorPage();
@@ -302,7 +276,6 @@ class EditorState extends State<Editor> {
   void removeExcessPages() {
     bool removedAPage = false;
 
-    // remove excess pages if all pages >= this one are empty
     for (int i = coreInfo.pages.length - 1; i >= 1; --i) {
       final thisPage = coreInfo.pages[i];
       final prevPage = coreInfo.pages[i - 1];
@@ -316,8 +289,6 @@ class EditorState extends State<Editor> {
     }
 
     if (removedAPage) {
-      // scroll to the last page (only if we're below the last page)
-
       final scrollY = this.scrollY;
       late final topOfLastPage = -CanvasGestureDetector.getTopOfPage(
         pageIndex: coreInfo.pages.length - 1,
@@ -333,7 +304,6 @@ class EditorState extends State<Editor> {
       if (scrollY < bottomOfLastPage) {
         _transformationController.value = Matrix4.translationValues(
           0,
-          // Slight upwards offset so that the page is not flush with the top of the screen
           topOfLastPage + 50,
           0,
         );
@@ -344,15 +314,10 @@ class EditorState extends State<Editor> {
   void undo([EditorHistoryItem? item]) {
     if (item == null) {
       if (!history.canUndo) return;
-
-      // if we disabled redo, re-enable it
       if (!history.canRedo) {
-        // no redo is possible, so clear the redo stack
         history.clearRedo();
-        // don't disable redoing anymore
         history.canRedo = true;
       }
-
       item = history.undo();
     }
 
@@ -379,23 +344,15 @@ class EditorState extends State<Editor> {
           }
 
         case .deletePage:
-          // make sure we already have a (blank/otherwise) page at this index
           createPage(item.pageIndex - 1);
-
-          // insert the page at the correct index
           coreInfo.pages.insert(item.pageIndex, item.page!);
-
-          // fix the page indices of all pages after this one
           for (int i = item.pageIndex + 1; i < coreInfo.pages.length; ++i) {
             final page = coreInfo.pages[i];
             page.updatePageIndex(i);
           }
 
         case .insertPage:
-          // remove the page at the given index
           coreInfo.pages.removeAt(item.pageIndex);
-
-          // fix the page indices of all pages after this one
           for (int i = item.pageIndex; i < coreInfo.pages.length; ++i) {
             final page = coreInfo.pages[i];
             page.updatePageIndex(i);
@@ -471,7 +428,7 @@ class EditorState extends State<Editor> {
         );
       case .quillChange:
         undo(item.copyWith(type: .quillUndoneChange));
-      case .quillUndoneChange: // this will never happen
+      case .quillUndoneChange:
         throw Exception('history should not contain quillUndoneChange items');
       case .changeColor:
         undo(
@@ -496,37 +453,29 @@ class EditorState extends State<Editor> {
       final pageBounds = Offset.zero & coreInfo.pages[i].size;
       if (pageBounds.contains(
         coreInfo.pages[i].renderBox!.globalToLocal(focalPoint),
-      ))
+      )) {
         return i;
+      }
     }
     return null;
   }
 
-  /// The position of the previous draw gesture event.
-  /// Used to move a selection.
   Offset previousPosition = .zero;
-
-  /// The total offset of the current move gesture.
-  /// Used to record a move in the history.
   Offset moveOffset = .zero;
 
   var isHovering = true;
   int? dragPageIndex;
   PointerDeviceKind? currentPointerKind;
   double? currentPressure;
+
   bool isDrawGesture(ScaleStartDetails details) {
     if (coreInfo.readOnly) return false;
-
-    CanvasImage.activeListener
-        .notifyListenersPlease(); // un-select active image
+    CanvasImage.activeListener.notifyListenersPlease();
 
     _lastSeenPointerCountTimer?.cancel();
     if (lastSeenPointerCount >= 2) {
-      // was a zoom gesture, ignore
-      lastSeenPointerCount = lastSeenPointerCount;
       return false;
     } else if (details.pointerCount >= 2) {
-      // is a zoom gesture, remove accidental stroke
       if (lastSeenPointerCount == 1 &&
           stows.editorFingerDrawing.value &&
           (currentTool is Pen || currentTool is Eraser)) {
@@ -536,7 +485,6 @@ class EditorState extends State<Editor> {
       lastSeenPointerCount = details.pointerCount;
       return false;
     } else {
-      // is a stroke
       lastSeenPointerCount = details.pointerCount;
     }
 
@@ -551,7 +499,6 @@ class EditorState extends State<Editor> {
         currentPressure != null) {
       return true;
     } else {
-      log.fine('Non-stylus found, rejected stroke');
       return false;
     }
   }
@@ -581,10 +528,9 @@ class EditorState extends State<Editor> {
       if (select.doneSelecting &&
           select.selectResult.pageIndex == dragPageIndex! &&
           select.selectResult.path.contains(position)) {
-        // drag selection in onDrawUpdate
       } else {
         select.onDragStart(position, dragPageIndex!);
-        history.canRedo = true; // selection doesn't affect history
+        history.canRedo = true;
       }
     } else if (currentTool is LaserPointer) {
       (currentTool as LaserPointer).onDragStart(position, page, dragPageIndex!);
@@ -596,8 +542,6 @@ class EditorState extends State<Editor> {
     if (currentTool is! Select) {
       Select.currentSelect.unselect();
     }
-
-    // setState to let canvas know about currentStroke
     setState(() {});
   }
 
@@ -668,7 +612,6 @@ class EditorState extends State<Editor> {
       } else if (currentTool is Eraser) {
         final erased = (currentTool as Eraser).onDragEnd();
         if (stylusButtonWasPressed || stows.disableEraserAfterUse.value) {
-          // restore previous tool
           stylusButtonWasPressed = false;
           currentTool = _lastNonEraserTool;
         }
@@ -702,7 +645,6 @@ class EditorState extends State<Editor> {
         } else {
           shouldSave = false;
           select.onDragEnd(page.strokes, page.images);
-
           if (select.selectResult.isEmpty) {
             Select.currentSelect.unselect();
           }
@@ -723,7 +665,6 @@ class EditorState extends State<Editor> {
   }
 
   void onInteractionEnd(ScaleEndDetails details) {
-    // reset after 1ms to keep track of the same gesture only
     _lastSeenPointerCountTimer?.cancel();
     _lastSeenPointerCountTimer = Timer(const Duration(milliseconds: 10), () {
       lastSeenPointerCount = 0;
@@ -745,20 +686,12 @@ class EditorState extends State<Editor> {
 
   void onStylusButtonChanged(bool buttonIsPressed) {
     stylusButtonWasPressed |= buttonIsPressed;
-
     if (!isHovering) return;
     if (buttonIsPressed) {
-      // button pressed while hovering, switch to Eraser
-      if (currentTool is! Eraser) {
-        currentTool = Eraser();
-      }
+      if (currentTool is! Eraser) currentTool = Eraser();
     } else {
-      // button was released while hovering, switch back to non-Eraser
-      if (currentTool is Eraser) {
-        currentTool = _lastNonEraserTool;
-      }
+      if (currentTool is Eraser) currentTool = _lastNonEraserTool;
     }
-
     if (mounted) setState(() {});
   }
 
@@ -772,7 +705,6 @@ class EditorState extends State<Editor> {
         offset: offset,
       ),
     );
-    // setState to update undo button
     setState(() {});
     autosaveAfterDelay();
   }
@@ -801,7 +733,7 @@ class EditorState extends State<Editor> {
         pageIndex: pageIndex,
         event: event,
       );
-      createPage(pageIndex); // create empty last page
+      createPage(pageIndex);
       if (undoRedoButtonsNeedUpdating) {
         setState(() {});
       }
@@ -825,14 +757,12 @@ class EditorState extends State<Editor> {
     final eventWasUndo = quill.controller.hasRedo;
     if (eventWasUndo) return;
 
-    // the change subscription sometimes fires multiple times for the same change
-    // so compare the "before" of each change to merge them
     if (history.canUndo && !history.canRedo) {
       final lastChange = history.peekUndo();
       if (lastChange.type == .quillChange &&
           lastChange.pageIndex == pageIndex &&
           lastChange.quillChange!.before == event.before) {
-        history.undo(); // remove the last change, to be replaced
+        history.undo();
       }
     }
 
@@ -874,7 +804,6 @@ class EditorState extends State<Editor> {
     }
 
     subscription = syncer.downloader.transferStream.listen(listener);
-
     await syncer.downloader.enqueue(syncFile: syncFile);
     syncer.downloader.bringToFront(syncFile);
   }
@@ -895,7 +824,6 @@ class EditorState extends State<Editor> {
 
     callback = () {
       if (Pen.currentStroke != null) {
-        // don't save yet if the pen is currently drawing
         startTimer();
         return;
       }
@@ -917,14 +845,11 @@ class EditorState extends State<Editor> {
 
     switch (savingState.value) {
       case .saved:
-        // avoid saving if nothing has changed
         return;
       case .saving:
-        // avoid saving if already saving
         log.warning('saveToFile() called while already saving');
         return;
       case .waitingToSave:
-        // continue
         _delayedSaveTimer?.cancel();
         savingState.value = .saving;
     }
@@ -982,7 +907,6 @@ class EditorState extends State<Editor> {
     final thumbnailPng = await thumbnail.toByteData(format: .png);
     thumbnail.dispose();
     await FileManager.writeFile(
-      // Note that this ends with .sbn2.p
       '$filePath.p',
       thumbnailPng!.buffer.asUint8List(),
       awaitWrite: true,
@@ -1016,7 +940,6 @@ class EditorState extends State<Editor> {
 
     final actualName = coreInfo.fileName;
     if (actualName != newName) {
-      // update text field if renamed differently
       filenameTextEditingController.value = filenameTextEditingController.value
           .copyWith(
             text: actualName,
@@ -1044,28 +967,21 @@ class EditorState extends State<Editor> {
 
     final newColorString = color.toARGB32().toString();
 
-    // migrate from old pref format
     if (stows.recentColorsChronological.value.length !=
         stows.recentColorsPositioned.value.length) {
-      log.info(
-        'MIGRATING recentColors: ${stows.recentColorsChronological.value.length} vs ${stows.recentColorsPositioned.value.length}',
-      );
       stows.recentColorsChronological.value = List.of(
         stows.recentColorsPositioned.value,
       );
     }
 
     if (stows.pinnedColors.value.contains(newColorString)) {
-      // do nothing, color is already pinned
     } else if (stows.recentColorsPositioned.value.contains(newColorString)) {
-      // if it's already a recent color, move it to the top
       stows.recentColorsChronological.value.remove(newColorString);
       stows.recentColorsChronological.value.add(newColorString);
       stows.recentColorsChronological.notifyListeners();
     } else {
       if (stows.recentColorsPositioned.value.length >=
           stows.recentColorsLength.value) {
-        // if full, replace the oldest color with the new one
         final removedColorString = stows.recentColorsChronological.value
             .removeAt(0);
         stows.recentColorsChronological.value.add(newColorString);
@@ -1074,7 +990,6 @@ class EditorState extends State<Editor> {
         stows.recentColorsPositioned.value[removedColorPosition] =
             newColorString;
       } else {
-        // if not full, add the new color to the end
         stows.recentColorsChronological.value.add(newColorString);
         stows.recentColorsPositioned.value.insert(0, newColorString);
       }
@@ -1083,19 +998,13 @@ class EditorState extends State<Editor> {
     }
   }
 
-  /// Prompts the user to pick photos from their device.
-  /// Returns the number of photos picked.
-  ///
-  /// If [photoInfos] is provided, it will be used instead of the file picker.
   Future<int> _pickPhotos([List<_PhotoInfo>? photoInfos]) async {
     if (coreInfo.readOnly) return 0;
-
     final currentPageIndex = this.currentPageIndex;
 
     photoInfos ??= await _pickPhotosWithFilePicker();
     if (photoInfos.isEmpty) return 0;
 
-    // use the Select tool so that the user can move the new image
     currentTool = Select.currentSelect;
 
     final images = [
@@ -1146,23 +1055,8 @@ class EditorState extends State<Editor> {
   Future<List<_PhotoInfo>> _pickPhotosWithFilePicker() async {
     final List<PlatformFile> files = await FilePicker.pickFiles(
       type: FileType.custom,
-      // Taken from
-      // https://github.com/brendan-duncan/image/blob/main/doc/formats.md
-      // (plus .svg)
       allowedExtensions: [
-        'jpg',
-        'jpeg',
-        'png',
-        'gif',
-        'tiff',
-        'bmp',
-        'tga',
-        'ico',
-        'pvrtc',
-        'svg',
-        'webp',
-        'psd',
-        'exr',
+        'jpg', 'jpeg', 'png', 'gif', 'tiff', 'bmp', 'tga', 'ico', 'pvrtc', 'svg', 'webp', 'psd', 'exr',
       ],
     );
     if (files.isEmpty) return const [];
@@ -1178,8 +1072,6 @@ class EditorState extends State<Editor> {
     ]).then((list) => list.nonNulls.toList());
   }
 
-  /// Prompts the user to pick a PDF to import.
-  /// Returns whether a PDF was picked.
   Future<bool> importPdf() async {
     if (coreInfo.readOnly) return false;
     if (!Editor.canRasterPdf) return false;
@@ -1195,14 +1087,12 @@ class EditorState extends State<Editor> {
 
   Future<bool> importPdfFromFilePath(String path) async {
     final pdfDocument = await coreInfo.assetCache.pdfDocumentCache.load(path);
-
     final emptyPage = coreInfo.pages.removeLast();
     assert(emptyPage.isEmpty);
 
     for (final pdfPage in pdfDocument.pages) {
       assert(pdfPage.pageNumber >= 1, 'pdfrx page numbers start at 1');
 
-      // resize to [defaultWidth] to keep pen sizes consistent
       final pageSize = Size(
         EditorPage.defaultWidth,
         EditorPage.defaultWidth * pdfPage.height / pdfPage.width,
@@ -1226,7 +1116,6 @@ class EditorState extends State<Editor> {
         ),
       );
       coreInfo.pages.add(page);
-      // TODO(adil192): Group multiple pages into one atomic change
       history.recordChange(
         EditorHistoryItem(
           type: .insertPage,
@@ -1240,14 +1129,11 @@ class EditorState extends State<Editor> {
 
     coreInfo.pages.add(emptyPage);
     if (mounted) setState(() {});
-
     autosaveAfterDelay();
-
     return true;
   }
 
   Future paste() async {
-    /// Maps image formats to their file extension.
     const Map<SimpleFileFormat, String> formats = {
       Formats.jpeg: '.jpeg',
       Formats.png: '.png',
@@ -1273,10 +1159,7 @@ class EditorState extends State<Editor> {
         await for (final chunk in stream) {
           bytes.addAll(chunk);
         }
-        if (bytes.isEmpty) {
-          log.warning('Pasted empty file: $file (${formats[format]})');
-          return;
-        }
+        if (bytes.isEmpty) return;
 
         String extension;
         if (file.fileName != null) {
@@ -1312,7 +1195,6 @@ class EditorState extends State<Editor> {
     );
   }
 
-  /// Exports the current note as an SBA (Saber Archive) file.
   Future exportAsSba(BuildContext context) async {
     final sba = await coreInfo.saveToSba(currentPageIndex: currentPageIndex);
     if (!context.mounted) return;
@@ -1323,15 +1205,8 @@ class EditorState extends State<Editor> {
     );
   }
 
-  /// Exports the current page as a PNG image file.
-  ///
-  /// This captures the canvas natively via [EditorExporter.screenshotPage],
-  /// which guarantees the correct background color and omits UI elements
-  /// like selection bounds or the text cursor. It computes a dynamic [pixelRatio]
-  /// to ensure high quality while averting Out-Of-Memory exceptions on large canvases.
   Future exportAsPng(BuildContext context) async {
     final page = coreInfo.pages[currentPageIndex];
-
     const maxRasterizableSize = 3000.0;
     var targetPixelRatio = maxRasterizableSize / page.size.longestSide;
     if (targetPixelRatio > 1) targetPixelRatio = 1;
@@ -1424,12 +1299,9 @@ class EditorState extends State<Editor> {
           readOnly: coreInfo.readOnly,
           setTool: (tool) {
             if (tool is Eraser && currentTool is Eraser) {
-              // setTool(Eraser) is a special case to toggle the eraser on/off
               tool = _lastNonEraserTool;
             }
-
             currentTool = tool;
-
             if (tool is Highlighter) {
               Highlighter.currentHighlighter = tool;
             } else if (tool is Pencil) {
@@ -1437,7 +1309,6 @@ class EditorState extends State<Editor> {
             } else if (tool is Pen) {
               Pen.currentPen = tool;
             }
-
             if (mounted) setState(() {});
           },
           currentTool: currentTool,
@@ -1449,7 +1320,6 @@ class EditorState extends State<Editor> {
               final page = coreInfo.pages[select.selectResult.pageIndex];
               final strokes = select.selectResult.strokes;
               final images = select.selectResult.images;
-
               const duplicationFeedbackOffset = Offset(25, -25);
 
               final duplicatedStrokes = strokes.map((stroke) {
@@ -1484,9 +1354,7 @@ class EditorState extends State<Editor> {
           },
           deleteSelection: () {
             final select = currentTool as Select;
-            if (!select.doneSelecting) {
-              return;
-            }
+            if (!select.doneSelecting) return;
 
             setState(() {
               final page = coreInfo.pages[select.selectResult.pageIndex];
@@ -1501,7 +1369,6 @@ class EditorState extends State<Editor> {
               }
 
               select.unselect();
-
               history.recordChange(
                 EditorHistoryItem(
                   type: .erase,
@@ -1516,7 +1383,6 @@ class EditorState extends State<Editor> {
           setColor: (color) {
             setState(() {
               updateColorBar(color);
-
               if (currentTool is Highlighter) {
                 (currentTool as Highlighter).color = color.withAlpha(
                   Highlighter.alpha,
@@ -1524,11 +1390,9 @@ class EditorState extends State<Editor> {
               } else if (currentTool is Pen) {
                 (currentTool as Pen).color = color;
               } else if (currentTool is Select) {
-                // Changes color of selected strokes
                 final select = currentTool as Select;
                 if (select.doneSelecting) {
                   final strokes = select.selectResult.strokes;
-
                   final colorChange = <Stroke, Change<Color>>{};
                   for (final stroke in strokes) {
                     colorChange[stroke] = Change(
@@ -1558,7 +1422,6 @@ class EditorState extends State<Editor> {
             if (currentTool == Tool.textEditing) {
               currentTool = Pen.currentPen;
               for (final page in coreInfo.pages) {
-                // unselect text, but maintain cursor position
                 page.quill.controller.moveCursorToPosition(
                   page.quill.controller.selection.extentOffset,
                 );
@@ -1622,14 +1485,13 @@ class EditorState extends State<Editor> {
     return ValueListenableBuilder(
       valueListenable: savingState,
       builder: (context, savingState, child) {
-        // don't allow user to go back until saving is done
         return PopScope(
           canPop: savingState == .saved,
           onPopInvokedWithResult: (didPop, _) {
             switch (savingState) {
               case .waitingToSave:
                 assert(!didPop);
-                saveToFile(); // trigger save now
+                saveToFile();
                 snackBarNeedsToSaveBeforeExiting();
               case .saving:
                 assert(!didPop);
@@ -1644,7 +1506,7 @@ class EditorState extends State<Editor> {
       child: Scaffold(
         key: _scaffoldKey,
         endDrawer: Drawer(
-          backgroundColor: const Color(0xFF1E2235), // Dark Theme สีเข้มสไตล์ StarNote
+          backgroundColor: const Color(0xFF1E2235),
           child: SafeArea(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1683,7 +1545,6 @@ class EditorState extends State<Editor> {
                 toolbarHeight: kToolbarHeight,
                 elevation: 0.5,
                 scrolledUnderElevation: 1,
-                // 1. Back button พร้อมสถานะ Save
                 leading: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -1697,7 +1558,6 @@ class EditorState extends State<Editor> {
                     ),
                   ],
                 ),
-                // 2. ชื่อไฟล์ + ตัวเลขบอกหน้าปัจจุบัน (e.g. 1/3)
                 title: Row(
                   children: [
                     Expanded(
@@ -1741,9 +1601,7 @@ class EditorState extends State<Editor> {
                     ),
                   ],
                 ),
-                // 3. ปุ่มเครื่องมือจัดการไฟล์ (Export, เพิ่มหน้า, หน้าทั้งหมด, ตัวเลือกเพิ่มเติม)
                 actions: [
-                  // ปุ่ม Quick Export (PDF / PNG / SBA)
                   PopupMenuButton<String>(
                     tooltip: t.editor.toolbar.export,
                     icon: const Icon(Icons.share_outlined),
@@ -1815,53 +1673,9 @@ class EditorState extends State<Editor> {
                       icon: Icons.grid_view,
                       cupertinoIcon: CupertinoIcons.rectangle_grid_2x2,
                     ),
-                    // 1. ปุ่มบวกกระดาษ (ของเดิม ไม่ต้องยุ่ง)
-                  IconButton(
-                    icon: const AdaptiveIcon(
-                      icon: Icons.add_box_outlined,
-                      cupertinoIcon: CupertinoIcons.add,
-                    ),
-                    tooltip: t.editor.menu.insertPage,
-                    onPressed: () => setState(() {
-                      final currentPageIndex = this.currentPageIndex;
-                      insertPageAfter(currentPageIndex);
-                      CanvasGestureDetector.scrollToPage(
-                        pageIndex: currentPageIndex + 1,
-                        pages: coreInfo.pages,
-                        screenWidth: MediaQuery.sizeOf(context).width,
-                        transformationController: _transformationController,
-                      );
-                    }),
-                  ),
-
-                  // 2. ปุ่มตารางสี่ช่อง (อันที่เราเพิ่งวางทับไป)
-                  IconButton(
-                    icon: const AdaptiveIcon(
-                      icon: Icons.grid_view,
-                      cupertinoIcon: CupertinoIcons.rectangle_grid_2x2,
-                    ),
                     tooltip: t.editor.pages,
                     onPressed: () {
                       _scaffoldKey.currentState?.openEndDrawer();
-                    },
-                  ),
-                  // 3. ปุ่มสามจุด (ของเดิม ไม่ต้องยุ่ง)
-                      IconButton(
-                        icon: const AdaptiveIcon(
-                          icon: Icons.more_vert,
-                          cupertinoIcon: CupertinoIcons.ellipsis_vertical,
-                        ),
-                        onPressed: () {
-                          showModalBottomSheet(
-                            context: context,
-                            builder: (context) => bottomSheet(context),
-                            isScrollControlled: true,
-                            showDragHandle: true,
-                            backgroundColor: colorScheme.surface,
-                            constraints: const BoxConstraints(maxWidth: 500),
-                          );
-                        },
-                      ),
                     },
                   ),
                   IconButton(
@@ -1947,12 +1761,10 @@ class EditorState extends State<Editor> {
       }),
       removeBackgroundImage: () => setState(() {
         if (coreInfo.readOnly) return;
-
         final page = coreInfo.pages[currentPageIndex];
         if (page.backgroundImage == null) return;
         page.images.add(page.backgroundImage!);
         page.backgroundImage = null;
-
         autosaveAfterDelay();
       }),
       redrawImage: () => setState(() {}),
@@ -2015,15 +1827,11 @@ class EditorState extends State<Editor> {
       }(),
       setAsBackground: (EditorImage image) {
         if (page.backgroundImage != null) {
-          // restore previous background image as normal image
           page.images.add(page.backgroundImage!);
         }
         page.images.remove(image);
         page.backgroundImage = image;
-
-        CanvasImage.activeListener
-            .notifyListenersPlease(); // un-select active image
-
+        CanvasImage.activeListener.notifyListenersPlease();
         autosaveAfterDelay();
         setState(() {});
       },
@@ -2189,12 +1997,9 @@ class EditorState extends State<Editor> {
 
   late int _lastCurrentPageIndex = coreInfo.initialPageIndex ?? 0;
 
-  /// The index of the page that is currently centered on screen.
   int get currentPageIndex {
     if (!mounted) return _lastCurrentPageIndex;
-
     final screenWidth = MediaQuery.sizeOf(context).width;
-
     return _lastCurrentPageIndex = getPageIndexFromScrollPosition(
       scrollY: -scrollY,
       screenWidth: screenWidth,
@@ -2210,32 +2015,24 @@ class EditorState extends State<Editor> {
   }) {
     for (int pageIndex = 0; pageIndex < pages.length; pageIndex++) {
       final bottomOfPage = CanvasGestureDetector.getTopOfPage(
-        pageIndex: pageIndex + 1, // top of next page
+        pageIndex: pageIndex + 1,
         pages: pages,
         screenWidth: screenWidth,
       );
-
-      if (scrollY < bottomOfPage) {
-        return pageIndex;
-      }
+      if (scrollY < bottomOfPage) return pageIndex;
     }
-    // below the last page
     return pages.length - 1;
   }
 
   @override
   void dispose() {
     unawaited(_cleanUpAsync());
-
     DynamicMaterialApp.removeFullscreenListener(_setState);
-
     _delayedSaveTimer?.cancel();
     _watchServerTimer?.cancel();
     _lastSeenPointerCountTimer?.cancel();
-
     _removeKeybindings();
 
-    // manually save pen properties since the listeners don't fire if a property is changed
     stows.lastFountainPenOptions.notifyListeners();
     stows.lastBallpointPenOptions.notifyListeners();
     stows.lastHighlighterOptions.notifyListeners();

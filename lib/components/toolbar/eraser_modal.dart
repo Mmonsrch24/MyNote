@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:saber/data/prefs.dart';
 import 'package:saber/data/tools/eraser.dart';
 
 class EraserModal extends StatefulWidget {
@@ -18,11 +17,10 @@ class EraserModal extends StatefulWidget {
 }
 
 class _EraserModalState extends State<EraserModal> {
+  bool _isStrokeEraser = true;
+
   @override
   Widget build(BuildContext context) {
-    // อ่านค่าโหมดจริงจาก Preferences ของ Saber
-    final isStrokeEraser = stows.eraserType.value == EraserType.wholeStroke;
-
     return Center(
       child: Container(
         width: 290,
@@ -60,32 +58,32 @@ class _EraserModalState extends State<EraserModal> {
             ),
             const SizedBox(height: 8),
 
-            // Stroke eraser: ลบทั้งเส้น
+            // Stroke eraser
             _buildModeTile(
               title: 'Stroke eraser',
-              isSelected: isStrokeEraser,
+              isSelected: _isStrokeEraser,
               onTap: () {
                 setState(() {
-                  stows.eraserType.value = EraserType.wholeStroke;
+                  _isStrokeEraser = true;
                 });
               },
             ),
             const SizedBox(height: 6),
 
-            // Area eraser: ลบเฉพาะจุดที่โดน
+            // Area eraser
             _buildModeTile(
               title: 'Area eraser',
-              isSelected: !isStrokeEraser,
+              isSelected: !_isStrokeEraser,
               onTap: () {
                 setState(() {
-                  stows.eraserType.value = EraserType.partialStroke;
+                  _isStrokeEraser = false;
                 });
               },
             ),
             const SizedBox(height: 10),
             const Divider(color: Colors.white12, height: 16),
 
-            // ล้างลายมือทั้งหมดในหน้า
+            // Erase all handwriting
             InkWell(
               onTap: widget.onClearAll,
               borderRadius: BorderRadius.circular(10),
